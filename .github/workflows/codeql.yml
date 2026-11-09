@@ -1,0 +1,26 @@
+---
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: ["main", "fix_security_issue_*"]
+  # pull_request:
+  #   branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+
+jobs:
+  codeql:
+    uses: huggingface/security-workflows/.github/workflows/codeql.yml@main
+    permissions:
+      actions: read
+      contents: read
+      packages: read
+      security-events: write
+    with:
+      languages: '["actions"]'
+      queries: security-extended,security-and-quality
+      runner: ubuntu-latest
