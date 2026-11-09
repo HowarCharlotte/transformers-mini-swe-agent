@@ -1,0 +1,71 @@
+---
+name: Reusable CodeQL Security Analysis For Github Actions
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: 'Languages as JSON array: ["actions","python","javascript"]'
+        required: false
+        type: string
+        default: '["actions"]'
+      queries:
+        description: 'Query suite'
+        required: false
+        type: string
+        default: 'security-extended,security-and-quality'
+      runner:
+        description: 'Choose a runner type'
+        required: false
+        type: string
+        default: 'ubuntu-latest'
+      use-runner-group:
+        description: 'Set to true if runner is a group name'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  security-events: write
+  packages: read
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    name: Analyze ${{ matrix.language }}
+    runs-on:
+      ${{ inputs.use-runner-group && fromJSON(format('{{"group":"{0}"}}', inputs.runner)) || inputs.runner }}
+    timeout-minutes: 360
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ${{ fromJSON(inputs.languages) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          languages: ${{ matrix.language }}
+          queries: ${{ inputs.queries }}
+          packs: codeql/${{ matrix.language }}-queries
+          config: ${{ vars.CODEQL_ORG_CONFIG }}
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
+        with:
+          category: "/language:${{ matrix.language }}"
+          upload: always
+          output: sarif-results
+      
+      - name: Upload results artifact
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codeql-results-${{ matrix.language }}
+          path: sarif-results/${{ matrix.language }}.sarif
+          retention-days: 30
